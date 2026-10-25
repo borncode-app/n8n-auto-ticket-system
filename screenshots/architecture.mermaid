@@ -1,0 +1,158 @@
+graph TB
+    subgraph LINE["LINE Messaging API"]
+        L1["Groups/Rooms"]
+        L2["Users"]
+    end
+
+    subgraph MAIN["Auto Ticket 1.7 (Main Workflow)"]
+        direction TB
+        WEBHOOK["Webhook Line"]
+        LIMIT["Limit"]
+        EXTRACT["Extract Sender IDs"]
+        PROFILE["Get Sender Profile"]
+        SUMMARY["Get Group/Room Summary"]
+        SWITCH["Switch (Event Router)"]
+
+        SWITCH -->|memberJoined| MJ["Set (memberJoined)"]
+        SWITCH -->|sticker| ST["Set (sticker)"]
+        SWITCH -->|unsend| UNS["Update Unsend (SQL)"]
+        SWITCH -->|memberLeft| ML["Set (memberLeft)"]
+        SWITCH -->|default| IMG["If Image"]
+
+        UNS --> MAINLOG["Call LogSQLServer"]
+
+        IMG -->|Yes| DL["Download & Upload FTP"]
+        IMG -->|No| NORM["Normalize Clean Text"]
+
+        DL --> NORM
+        NORM --> IT["Get IT Team"]
+
+        IT -->|IT Staff| AA["Call Auto Assign 1.2"]
+        IT -->|Not IT| TICKET["If Ticket?"]
+
+        TICKET -->|Yes| CORE["Call Auto Ticket CoreAI 1.3"]
+        TICKET -->|No| MAINLOG2["Log"]
+    end
+
+    subgraph COREAI["Auto Ticket CoreAI 1.3"]
+        direction TB
+        C1["Get Category"]
+        C2["Core Agent (LLM)"]
+        C3["Get Branch Main/Franchise"]
+        C4["Find Branch (LLM)"]
+        C5["Get Sub Category"]
+        C6["Find Sub Category (LLM)"]
+        C7["Set Command Ticket"]
+        C8["Set Sub/Body"]
+        C9["Microsoft SQL (Insert)"]
+        C10["Call LogSQLServer"]
+
+        C2 --> C3
+        C3 --> C4
+        C4 --> C5
+        C5 --> C6
+        C6 --> C7
+        C7 --> C8
+        C8 --> C9
+        C9 --> C10
+    end
+
+    subgraph ASSIGN["Auto Assign 1.2"]
+        direction TB
+        A1["If Reply?"]
+        A2["Wait (1 min)"]
+        A3["Lookup Ticket"]
+        A4["Match IT Team"]
+        A5["Send Email DavMail"]
+        A6["Update SQL (assigned)"]
+        A7["Call LogSQLServer"]
+
+        A1 -->|Yes| A2
+        A2 --> A3
+        A3 --> A4
+        A4 --> A5
+        A5 --> A6
+        A6 --> A7
+    end
+
+    subgraph SCHEDULE["Schedule Ticket Unassign 1.2"]
+        direction TB
+        S1["Schedule Trigger (12:00, 18:00)"]
+        S2["Get Pending Tickets"]
+        S3["Loop Over Items"]
+        S4["Send Email DavMail"]
+        S5["Update SQL (unassigned)"]
+        S6["Call LogSQLServer"]
+
+        S1 --> S2
+        S2 --> S3
+        S3 --> S4
+        S4 --> S5
+        S5 --> S6
+    end
+
+    subgraph LOG["LogSQLServer v1.0.1"]
+        direction TB
+        LG1["Start"]
+        LG2["SELECT TOP (1)"]
+        LG3["Set Insert Log"]
+        LG4["Insert Log to DB"]
+
+        LG1 --> LG2
+        LG2 --> LG3
+        LG3 --> LG4
+    end
+
+    subgraph DATABASE["Microsoft SQL Server"]
+        DB1["[YourDatabase].[dbo].[ticket]"]
+        DB2["[YourDatabase].[dbo].[log]"]
+    end
+
+    subgraph EXTERNAL["External Services"]
+        FTP["FTP Server"]
+        EMAIL["DavMail SMTP"]
+        LLM["OpenRouter (deepseek)"]
+    end
+
+    %% LINE to Main Workflow
+    L1 --> WEBHOOK
+    L2 --> WEBHOOK
+
+    %% Main Workflow Internal Flow
+    WEBHOOK --> LIMIT --> EXTRACT --> PROFILE --> SUMMARY --> SWITCH
+
+    %% Cross-Workflow Calls
+    CORE -.-> AA
+    MAINLOG -.-> LG1
+    MAINLOG2 -.-> LG1
+    C10 -.-> LG1
+    A7 -.-> LG1
+    S6 -.-> LG1
+
+    %% Database Operations
+    C9 -->|Insert| DB1
+    A6 -->|Update| DB1
+    S5 -->|Update| DB1
+    UNS -->|Update| DB1
+
+    %% Log to Database
+    LG4 --> DB2
+
+    %% External Service Calls
+    DL -.-> FTP
+    A5 -.-> EMAIL
+    S4 -.-> EMAIL
+    C2 -.-> LLM
+
+    %% Styling
+    classDef mainWorkflow fill:#e1f5fe,stroke:#01579b,stroke-width:3px,color:#000000
+    classDef subWorkflow fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000
+    classDef database fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000
+    classDef external fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#000000
+    classDef line fill:#fce4ec,stroke:#880e4f,stroke-width:2px,color:#000000
+
+    class WEBHOOK,LIMIT,EXTRACT,PROFILE,SUMMARY,SWITCH,IMG,NORM,IT,TICKET,MJ,ST,UNS,ML,DL,AA,CORE,MAINLOG,MAINLOG2 mainWorkflow
+    class C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,A1,A2,A3,A4,A5,A6,A7,S1,S2,S3,S4,S5,S6,LG1,LG2,LG3,LG4 subWorkflow
+    class DB1,DB2 database
+    class FTP,EMAIL,LLM external
+    class L1,L2 line

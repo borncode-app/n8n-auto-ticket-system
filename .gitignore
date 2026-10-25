@@ -1,0 +1,38 @@
+# Environments
+.env
+.env.*
+
+# Data & Backups
+db/
+n8n-data/
+backup-*/
+n8n-backup/
+ftp/
+n8n/
+.last_backup_path
+*.backup.*
+
+# Workflow backup temp dir (see scripts/backup-workflows.sh)
+.workflows-tmp/
+
+# Secrets & Certs
+runner_auth_token.txt
+nginx/ssl/
+*.bak
+*.crt
+*.key
+
+# Caches & Logs
+__pycache__/
+*.pyc
+*.log
+crash.journal
+
+# Local tooling (per-developer)
+.claude/
+.github/AGENTS.md
+.remember/
+
+# OS generated files
+.DS_Store
+Thumbs.db

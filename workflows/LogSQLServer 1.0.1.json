@@ -1,0 +1,202 @@
+{
+  "createdAt": "2026-01-28T08:15:59.208Z",
+  "id": "q3ybqMcKYHUTu4qg",
+  "name": "LogSQLServer 1.0.1",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "table": "[YourDatabase].[dbo].[log]",
+        "columns": "table_name, table_row_id, action_type, value, created_date, created_by, message_id"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        3872,
+        1584
+      ],
+      "id": "b8e37dd5-d035-4df6-a9f2-b032a39f992e",
+      "name": "Insert Log",
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f90eac51-8cb9-4563-b8ea-f580c5ededb1",
+              "name": "table_name",
+              "value": "={{ $('Start').item.json.table_name }}",
+              "type": "string"
+            },
+            {
+              "id": "163a982f-3165-42e5-a53d-2b4b5c8b77ca",
+              "name": "table_row_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "fd5c1a52-7bdf-4a27-bde1-5f02f5e535a8",
+              "name": "action_type",
+              "value": "={{ $('Start').item.json.action_type }}",
+              "type": "string"
+            },
+            {
+              "id": "c4199f1e-3929-46de-a19f-691eaa538a9d",
+              "name": "message_id",
+              "value": "={{ $('Start').item.json.message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "ea0bf4bb-1bbd-4b1f-8cd9-56c76e425396",
+              "name": "value",
+              "value": "={{ $('Start').item.json.value }}",
+              "type": "string"
+            },
+            {
+              "id": "81957629-4ff8-4638-b2af-3156ef870fb0",
+              "name": "created_date",
+              "value": "={{ $('Start').item.json.datetime }}",
+              "type": "string"
+            },
+            {
+              "id": "36c56b1e-b3cd-4fed-95d8-75311d5b9727",
+              "name": "created_by",
+              "value": "={{ $('Start').item.json.by }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3712,
+        1584
+      ],
+      "id": "c3702223-f731-49ac-aba3-542e7827cf6d",
+      "name": "Set Insert Log"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "table_name",
+              "type": "any"
+            },
+            {
+              "name": "action_type",
+              "type": "any"
+            },
+            {
+              "name": "value",
+              "type": "any"
+            },
+            {
+              "name": "message_id",
+              "type": "any"
+            },
+            {
+              "name": "datetime",
+              "type": "any"
+            },
+            {
+              "name": "by",
+              "type": "any"
+            }
+          ]
+        }
+      },
+      "id": "db1a8511-672b-442b-a50f-289eea719a79",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        3344,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT TOP (1) *\n  FROM [YourDatabase].[dbo].[ticket]\n  WHERE [message_id] = '{{ $json.message_id }}'\n  ORDER BY [created_date] DESC;"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        3552,
+        1584
+      ],
+      "id": "c23ef289-4868-4122-b0bd-cbcc7a3b7d02",
+      "name": "SELECT TOP (1)",
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Set Insert Log": {
+      "main": [
+        [
+          {
+            "node": "Insert Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "SELECT TOP (1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SELECT TOP (1)": {
+      "main": [
+        [
+          {
+            "node": "Set Insert Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "V7eRnHnXtdb4QAo2",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "versionId": "811f3001-a5a7-427f-b1ce-406d0677d63a",
+  "activeVersionId": "811f3001-a5a7-427f-b1ce-406d0677d63a",
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": "Version 811f3001",
+    "description": ""
+  }
+}

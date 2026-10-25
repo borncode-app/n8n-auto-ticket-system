@@ -1,0 +1,613 @@
+{
+  "createdAt": "2026-03-24T02:22:17.633Z",
+  "id": "pV8Fw0JWE82gFxKuPus7B",
+  "name": "Schedule Auto Open Ticket Unclose 1.1",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "fromEmail": "helpdesk@example.com",
+        "toEmail": "helpdesk@example.com",
+        "subject": "={{ $('Loop Over Items').item.json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $('Loop Over Items').item.json.email_body }}\n#assign {{ $json.email_spiceworks }}",
+        "options": {
+          "appendAttribution": false,
+          "attachments": ""
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1360,
+        512
+      ],
+      "id": "9eb43b4e-c648-47a0-b33c-644de5722075",
+      "name": "Send email To DavMail",
+      "webhookId": "80cc3563-9de4-4d51-bf92-1e4b8acbe216",
+      "credentials": {
+        "smtp": {
+          "id": "o2kgNvpcg8y3t93j",
+          "name": "DavMail"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        656,
+        224
+      ],
+      "id": "6e03fa37-6e73-47ab-8517-cd4ac0c7b34d",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE [YourDatabase].[dbo].[ticket]\nSET status = 'unclose',\n    assigned_date = GETDATE(),\n    assigned_to = N'{{ $('Match IT Team').item.json.userId }}',\n    updated_date = GETDATE(),\n    updated_by = N'{{ $('Match IT Team').item.json.userId }}'\nWHERE message_id = {{ $('Get Pending Tickets').item.json.message_id }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        1552,
+        320
+      ],
+      "id": "41a8f4f1-1b85-458c-b9da-a6c82b65bc60",
+      "name": "Update Ticket Status",
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q3ybqMcKYHUTu4qg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q3ybqMcKYHUTu4qg",
+          "cachedResultName": "LogSQLServer 1.0.1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "table_name": "[YourDatabase].[dbo].[ticket]",
+            "action_type": "UNCLOSE",
+            "datetime": "={{ $now.toDateTime().toFormat('yyyy-MM-dd HH:mm:ss.SSS') }}",
+            "message_id": "={{ $('Loop Over Items').item.json.message_id }}",
+            "value": "=Unclose Ticket ",
+            "by": "N8N_System_Unclose"
+          },
+          "matchingColumns": [
+            "table_name",
+            "action_type",
+            "field_name",
+            "new_value",
+            "body_events_firstItem"
+          ],
+          "schema": [
+            {
+              "id": "table_name",
+              "displayName": "table_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_type",
+              "displayName": "action_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "datetime",
+              "displayName": "datetime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "by",
+              "displayName": "by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1776,
+        320
+      ],
+      "name": "Call LogSQLServer v1.0.0",
+      "id": "5eb7b63a-2b7f-4e16-8af2-26b5c8a0b9ce"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "01d05d3d-e86c-406e-bf05-d1fb53333b1a",
+              "leftValue": "={{ Object.keys($json).length === 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        432,
+        224
+      ],
+      "id": "6bffb0f1-2713-466d-9690-f438ec272412",
+      "name": "If notEmpty"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "51efdf26-1cef-4c67-bcf7-aa4ef67c9473",
+              "leftValue": "={{ $('Loop Over Items').item.json.subject }}",
+              "rightValue": "=SR-IT",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        224
+      ],
+      "id": "4a0f8e0b-5ae4-4e83-973c-025f039643ec",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT TOP 1 *\nFROM [YourDatabase].[dbo].[it_team]\nWHERE userId = '{{ $json.updated_by }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        224
+      ],
+      "id": "e8f8390a-5521-4211-8190-c8e04f91e147",
+      "name": "Match IT Team",
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        128
+      ],
+      "id": "8067c86f-17b6-4225-a956-eda0b4aac60d",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM [YourDatabase].[dbo].[ticket]\nWHERE status = 'assigned'\n--WHERE status = 'pending';\nAND assigned_date >= '2026-09-10' \n--AND assigned_date < '2026-06-30';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        224
+      ],
+      "id": "28dd3c8d-69a1-4a34-9cb2-9098236a9893",
+      "name": "Get Pending Tickets",
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8,18 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -464,
+        224
+      ],
+      "id": "d4cb452e-9f13-434e-92e1-61369208116b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if today is last day of month\nconst now = new Date();\nconst year = now.getFullYear();\nconst month = now.getMonth();\nconst lastDay = new Date(year, month + 1, 0).getDate();\nconst today = now.getDate();\nconst isLastDay = (today === lastDay);\n\n// Always return 1 item so downstream IF has data to evaluate\nreturn [{ json: { isLastDay } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        224
+      ],
+      "id": "651cae99-bd03-43c5-acdb-69557c66756c",
+      "name": "Check Last Day of Month"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check-lastday",
+              "leftValue": "={{ $json.isLastDay }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -16,
+        224
+      ],
+      "id": "1d18bfb6-3dc4-4da8-9a46-7eb786693334",
+      "name": "If Last Day"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "JFTQnofpdNn7P3lV",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/JFTQnofpdNn7P3lV",
+          "cachedResultName": "Send Email (Graph)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "toEmail": "helpdesk@example.com",
+            "subject": "={{ $('Loop Over Items').item.json.subject }}",
+            "emailFormat": "text",
+            "text": "={{ $('Loop Over Items').item.json.email_body }}\n#assign {{ $json.email_spiceworks }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "toEmail",
+              "displayName": "toEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "emailFormat",
+              "displayName": "emailFormat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "html",
+              "displayName": "html",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "ccEmail",
+              "displayName": "ccEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "bccEmail",
+              "displayName": "bccEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "replyTo",
+              "displayName": "replyTo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1344,
+        320
+      ],
+      "id": "23dc5b5b-dcf9-4b16-b419-fa5656f89263",
+      "name": "Send email via Graph",
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Send email To DavMail": {
+      "main": [
+        []
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Match IT Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Ticket Status": {
+      "main": [
+        [
+          {
+            "node": "Call LogSQLServer v1.0.0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If notEmpty": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send email via Graph",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match IT Team": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Tickets": {
+      "main": [
+        [
+          {
+            "node": "If notEmpty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Last Day of Month",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Last Day of Month": {
+      "main": [
+        [
+          {
+            "node": "If Last Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Last Day": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email via Graph": {
+      "main": [
+        [
+          {
+            "node": "Update Ticket Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Bangkok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "V7eRnHnXtdb4QAo2"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "versionId": "992b3b88-67a9-4655-9f7b-f19aadf577e0",
+  "activeVersionId": "992b3b88-67a9-4655-9f7b-f19aadf577e0",
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": "Version 992b3b88",
+    "description": ""
+  }
+}

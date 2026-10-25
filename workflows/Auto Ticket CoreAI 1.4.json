@@ -1,0 +1,1109 @@
+{
+  "createdAt": "2026-10-15T07:56:50.177Z",
+  "id": "qyRChUr2CmYRxwOp",
+  "name": "Auto Ticket CoreAI 1.4",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"sub_category\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"description\": \"The official sub-category name ONLY. Do not include aliases or parentheses.\"\n\t\t}\n\t}\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1232,
+        624
+      ],
+      "id": "1c2f796c-bd96-445c-8bf6-02da1baa9325",
+      "name": "Structured Output Sub Category"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM [YourDatabase].[dbo].[n8n_sub_category];",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        -1440,
+        480
+      ],
+      "id": "179606d6-892f-4d8b-be54-74c0102c0fe7",
+      "name": "Get Sub Category",
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=ปัญหา: {{ $('Start').first().json.clean_text.match(/ปัญหา\\s*\\s*([\\s\\S]*)/)?.[1].trim() }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Role: IT Support Classifier.\nCategory Context: {{ $('Core Agent').item.json.output.category }}\nBranch Name: {{ $('FInd Branch').item.json.output.branch_name }}\n\nTASK: Classify the user issue into the best Sub-Category from the provided list.\n\nSUB-CATEGORY LIST:\n{{ \n(() => {\n  const inputCat = $('Core Agent').item.json.output.category;\n  const mapCat = { \n    'SW': 'Software', \n    'HW': 'Hardware', \n    'CAMERA': 'Camera', \n    'NETWORK': 'Network', \n    'POS': 'Software',\n    'RATE': 'Software' \n  }[inputCat] || inputCat; \n\n  return $('Get Sub Category').all()\n    .filter(item => item.json.sub_category === mapCat || item.json.sub_category === inputCat)\n    .map(item => {\n        const aliasInfo = item.json.alias ? ` [Keywords: ${item.json.alias}]` : '';\n        return `- ${item.json.name}${aliasInfo}`;\n    })\n    .join(\"\\n\");\n})() \n}}\n\nRULES:\n1. ROOT CAUSE OVERRIDES SYMPTOM: When \"การแก้ไขปัญหา\" (Resolution) is present in the input, you MUST logically extract the actual root cause of the problem. Users typically report surface-level symptoms (e.g., UI display issues, software freezing, unable to print), but the resolution explicitly states the underlying failing component (e.g., server, infrastructure, network equipment, hardware). Your classification MUST strictly map to the underlying component that was fixed or identified in the resolution, completely overriding the initial symptom.\n2. PRINTER PRIORITY: If query mentions \"Printer/Paper\", select \"Printer\" immediately.\n3. BRANCH MAPPING: For NETWORK category, prioritize \"Internet PPontime\" only if the \"Branch Name\" has a 100% exact match in its keywords. If multiple ISPs contain the same branch name, cross-check with the issue intensity or use a pre-defined mapping table.\n4. IMPACT: Prioritize work-blocking issues (Login/Transaction) over cosmetic ones.\n5. FALLBACK RULE: If the issue does not fit any sub-category from the provided list, or if the list is empty, you must return the value of the \"Category Context\" as the sub_category.\n\nReturn ONLY the Sub-Category name."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -1248,
+        480
+      ],
+      "id": "cae21093-18de-4245-8358-6ae6317a8dcc",
+      "name": "Find Sub Category",
+      "executeOnce": true,
+      "retryOnFail": true,
+      "alwaysOutputData": false,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM [YourDatabase].[dbo].[n8n_branch_franchise];",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        -1952,
+        336
+      ],
+      "id": "3065e728-21c6-4f1f-aa59-5ba411b1df25",
+      "name": "Get Branch Franchise",
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "524003f4-4f6c-458a-b942-5305659855b9",
+              "name": "Company",
+              "value": "Branch Franchise",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1792,
+        336
+      ],
+      "id": "d9ea2157-679d-4a4f-90a2-6b766feafad6",
+      "name": "Set Branch Franchise"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"branch_name\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Extract the raw branch name exactly as mentioned in the text. Return null if not found.\"\n    },\n    \"reporter_name\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Name of the reporter extracted strictly from 'ผู้แจ้ง'.\"\n    },\n    \"category\": {\n      \"type\": \"string\",\n      \"description\": \"Category selected strictly from the Master Category List provided in the prompt.\"\n    },\n    \"intent\": {\n      \"type\": \"string\",\n      \"enum\": [\"INC\", \"SR\"],\n      \"description\": \"INC for issues/errors, SR for requests.\"\n    },\n    \"subject_summary\": {\n      \"type\": \"string\",\n      \"description\": \"Concise summary (max 60 chars).\"\n    }\n  },\n  \"required\": [\"branch_name\", \"category\", \"intent\", \"subject_summary\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2128,
+        336
+      ],
+      "id": "66980afa-72b4-4889-bbd4-51057f6e386c",
+      "name": "Structured Output Core Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e7b8cfd3-ff6b-4f35-8b24-0864ebeb177b",
+              "name": "subject",
+              "value": "=[{{ $('Core Agent').item.json.output.intent }}-{{ $('Core Agent').item.json.output.category }}] {{ $('Core Agent').item.json.output.subject_summary }}",
+              "type": "string"
+            },
+            {
+              "id": "b9dd931c-1427-405c-98a9-c7121ce57217",
+              "name": "email_body",
+              "value": "={{ $('Start').first().json.body_events_firstItem[0].message.text.match(/ปัญหา\\s*\\s*([\\s\\S]*)/)?.[1].trim() }}\n\n#category {{ $json['#category'] }}\n#set {{ $json['#branch'] }}={{ $('Merge').item.json.output.branch_name }}\n{{ $json['#sub_category'].toString().replace(/=?\\s*Printer/i, '').trim() }}\n#set Contact=Line แจ้งปัญหาและแจ้งซ่อม\n#set Day={{ DateTime.fromMillis($('Start').first().json.body_events_firstItem[0].timestamp).setLocale('en').toFormat('cccc') }}\n#set User ที่แจ้ง={{ $('Start').first().json.from_ticket_firstItem }}\n#set วันที่เปิด Ticket={{ DateTime.fromMillis($('Start').first().json.body_events_firstItem[0].timestamp).toFormat('dd-MM-yyyy') }}\n#set เวลาเปิด Ticket={{ DateTime.fromMillis($('Start').first().json.body_events_firstItem[0].timestamp).toFormat('HH:mm:ss') }}\n#set รายละเอียดงาน={{ $('Start').first().json.body_events_firstItem[0].message.text.match(/ปัญหา\\s*\\s*([\\s\\S]*)/)?.[1].trim() }}\n{{ $json['#type'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -592,
+        272
+      ],
+      "id": "5cba3d91-03a8-496c-96a3-607f14e1a5cb",
+      "name": "Set Sub/Body",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -880,
+        272
+      ],
+      "id": "9c24d5b6-2fd9-493e-b9e5-703206f4f56c",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "06e1c629-cf43-469f-9f73-0ec894041707",
+              "name": "#category",
+              "value": "={{ \n(() => {\n  const c = $('Core Agent').item.json.output.category;\n  const m = {\n    'SW': 'Software',\n    'NETWORK': 'Network',\n    'CAMERA': 'Camera', \n    'PRINTER': 'Printer', \n    'RATE': 'Software', \n    'POS': 'Software', \n    'REQUEST' : 'Requested',\n    'PASSWORD' : 'Password Reset',\n    'IT' : 'IT',\n    'HW': 'Hardware'\n  };\n  return m[c] ? `${m[c]}` : '';\n})() \n}}",
+              "type": "string"
+            },
+            {
+              "id": "4406a231-83ed-4817-b861-00fbf02ff8ae",
+              "name": "#sub_category",
+              "value": "={{ \n(() => {\n  const c = $('Core Agent').item.json.output.category;\n  const m = {\n    'SW': 'Software',\n    'NETWORK': 'Network',\n    'CAMERA': 'Camera', \n    'RATE': 'Software', \n    'POS': 'Software', \n    'HW': 'Hardware'\n  };\n  return m[c] ? `#set Category ${m[c]}` : '';\n})() \n}}={{ $json.output.sub_category }}",
+              "type": "string"
+            },
+            {
+              "id": "faf8aa18-38b5-4c89-a958-8490f4fcb20a",
+              "name": "#branch",
+              "value": "={{ $json.output.company }}",
+              "type": "string"
+            },
+            {
+              "id": "7aeb2f3a-1f44-458c-a0b1-a81af130043c",
+              "name": "#type",
+              "value": "={{ \n(() => {\n  const c = $('Core Agent').item.json.output.intent;\n  const m = {\n    'INC': 'Incident',\n    'SR': 'Service Request'\n  };\n  return m[c] ? `#set Type=${m[c]}` : '';\n})() \n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -752,
+        272
+      ],
+      "id": "56f44c9d-c92f-486e-a760-978c27319eee",
+      "name": "Set Command Ticket"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "include": "specifiedFields",
+        "fieldsToInclude": "Name, Alias, Company",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -1440,
+        256
+      ],
+      "id": "1b80ad54-0470-4bad-9b61-a4e185be9c46",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Core Agent').item.json.output.branch_name }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a branch classification assistant.\n\nYOUR TASK:\nAnalyze the user's input and match it to one of the branches in the \"Master List\" below.\n\nMASTER LIST:\n[\n{{ $json.data.map(item => `- ${item.Name} ${item.Alias ? '(ชื่ออื่น: ' + item.Alias + ')' : ''}| บริษัท: ${item.Company}`).join(\"\\n\") }}\n]\n\nRESPONSE RULES (CRITICAL):\n1. **branch_name**: Return ONLY the official name at the start of the line. You MUST REMOVE any text inside parentheses (e.g., \"(ชื่ออื่น: ...)\") completely.\n   - Example Source: \"Around Community Mall (ชื่ออื่น: ปตท)| บริษัท: Branch Main\"\n   - Correct Output: \"Around Community Mall\"\n   - Wrong Output: \"Around Community Mall (ชื่ออื่น: ปตท)\"\n\n2. **company**: Extract the exact text found after the separator \"| บริษัท:\".\n   - Example Output: \"Branch Main\"\n\nIf no match is found, return null for both fields."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -1264,
+        256
+      ],
+      "id": "d0b1a46c-caab-49ae-acd8-56cc9ec0ca0a",
+      "name": "FInd Branch",
+      "alwaysOutputData": false,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1632,
+        256
+      ],
+      "id": "dbaa2f64-1596-4b3c-9781-34d747e5abf5",
+      "name": "Merge Company"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM [YourDatabase].[dbo].[n8n_category];",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        -2464,
+        176
+      ],
+      "id": "cf1445dd-9b96-4dd7-9223-3c02483ab9c7",
+      "name": "Get Category",
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "524003f4-4f6c-458a-b942-5305659855b9",
+              "name": "Company",
+              "value": "Branch Main",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1792,
+        176
+      ],
+      "id": "ac150ca1-f943-4a65-8818-bbe4fb0196fe",
+      "name": "Set Branch Main"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM [YourDatabase].[dbo].[n8n_branch_main];",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        -1952,
+        176
+      ],
+      "id": "520df010-84b8-4d81-ba6a-ddd34f7e74d0",
+      "name": "Get Branch Main",
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Start').item.json.clean_text }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Role: IT Support Classifier & Data Extractor.\nCategory List:\n{{ $('Get Category').all().map(item => `- ${item.json.Name}${item.json.Alias ? ' (Keywords: ' + item.json.Alias + ')' : ''}`).join(\"\\n\") }}\n\nTASK:\n1. Extract Branch: Name found in text, else null.\n2. Determine Category (CRITICAL LOGIC):\n   - If the text contains \"การแก้ไขปัญหา\" (Resolution), you MUST classify the category based on the ROOT CAUSE mentioned in the resolution. Completely ignore the initial symptoms. \n   - Example: Symptom is \"จอเรท\" (HW) but Resolution says \"Service\" or \"Software\" issue on server, you MUST classify as \"SW\".\n3. Identify Intent: \"INC\" (broken/error) or \"SR\" (request/setup/ดับไฟ).\n4. Generate Subject Summary: (THAI ONLY).\n\nSUMMARY FORMAT:\n\"[Branch] [Position/ID] [Device/Object] [Short Symptom or Root Cause]\"\n- Include identifiers like \"เคาน์เตอร์ 5\" or \"เครื่อง 2\" if present.\n- Tone: Professional, no polite particles (No ครับ/ค่ะ).\n- Technical terms (POS/LAN/WiFi/Printer/Server/Service) remain in English.\n- Max 60 characters.\n\nSPECIAL RULES:\n- สาขา 1 ผู้แจ้ง พนักงาน 1 และ พนักงาน 2 -> Category: IT.\n- \"PSS\" keyword -> Category: SW.\n- \"POS machine\" keyword -> Category: POS.\n- \"แก้ไข MC\" or \"เพิ่มลายเส้น MC\" -> Category: REQUEST, Intent: SR.\n- \"แจ้งดับไฟ\" -> Intent: SR."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -2272,
+        176
+      ],
+      "id": "a585decc-9cf0-464c-815d-5683c09c7147",
+      "name": "Core Agent",
+      "executeOnce": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"branch_name\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"description\": \"The official branch name ONLY. Do not include aliases or parentheses.\"\n\t\t},\n\t\t\"company\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"description\": \"The company name associated with the branch.\"\n\t\t}\n\t}\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1120,
+        96
+      ],
+      "id": "1b84c031-d49c-4936-9528-ef9546aca3b5",
+      "name": "Structured Output Branch",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "model": "~deepseek/deepseek-flash-latest",
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1552,
+        128
+      ],
+      "id": "926b130d-c142-4499-ac13-0015bf6e3396",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "NEbQVn9EuXOOfFxh",
+          "name": "Enterprise"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "from_ticket_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "body_events_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "groupName_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "groupId_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "userId_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "displayName_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "raw_text_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "clean_text_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "clean_text",
+              "type": "any"
+            },
+            {
+              "name": "HTTP__Get_Sender_Profile_userId_firstItem",
+              "type": "any"
+            },
+            {
+              "name": "SET__Normalize_Clean_Text_isExecuted",
+              "type": "any"
+            },
+            {
+              "name": "raw_text",
+              "type": "any"
+            },
+            {
+              "name": "action"
+            }
+          ]
+        }
+      },
+      "id": "04b04213-a20e-42ac-a2c6-07fa450d65ea",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -2672,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q3ybqMcKYHUTu4qg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q3ybqMcKYHUTu4qg",
+          "cachedResultName": "LogSQLServer 1.0.1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "table_name": "[YourDatabase].[dbo].[ticket]",
+            "action_type": "INSERT",
+            "message_id": "={{ $json.message_id }}",
+            "datetime": "={{ $json.created_date }}",
+            "value": "={{ $json.clean_text }}",
+            "by": "={{ $json.fromuser }}"
+          },
+          "matchingColumns": [
+            "table_name",
+            "action_type",
+            "field_name",
+            "new_value",
+            "body_events_firstItem"
+          ],
+          "schema": [
+            {
+              "id": "table_name",
+              "displayName": "table_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_type",
+              "displayName": "action_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "datetime",
+              "displayName": "datetime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "by",
+              "displayName": "by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        272
+      ],
+      "name": "Call LogSQLServer v1.0.0",
+      "id": "6433b090-9670-49e6-b57f-088160548d5f"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "message_id",
+              "name": "message_id",
+              "value": "={{ $('Start').first().json.body_events_firstItem[0].message.id }}",
+              "type": "string"
+            },
+            {
+              "id": "status",
+              "name": "status",
+              "value": "pending",
+              "type": "string"
+            },
+            {
+              "id": "assigned_to",
+              "name": "assigned_to",
+              "value": "={{ null }}",
+              "type": "string"
+            },
+            {
+              "id": "assigned_at",
+              "name": "assigned_date",
+              "value": "={{ null }}",
+              "type": "string"
+            },
+            {
+              "id": "intent",
+              "name": "intent",
+              "value": "={{ $('Core Agent').item.json.output.intent }}",
+              "type": "string"
+            },
+            {
+              "id": "category",
+              "name": "category",
+              "value": "={{ $('Core Agent').item.json.output.category }}",
+              "type": "string"
+            },
+            {
+              "id": "sub_category",
+              "name": "sub_category",
+              "value": "={{ $('Merge').item.json.output.sub_category }}",
+              "type": "string"
+            },
+            {
+              "id": "branch_name",
+              "name": "branch_name",
+              "value": "={{ $('FInd Branch').item.json.output.branch_name }}",
+              "type": "string"
+            },
+            {
+              "id": "branch_company",
+              "name": "branch_company",
+              "value": "={{ $('Merge').item.json.output.company }}",
+              "type": "string"
+            },
+            {
+              "id": "subject",
+              "name": "subject",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "clean_text",
+              "name": "clean_text",
+              "value": "={{ $('Start').first().json.clean_text_firstItem }}",
+              "type": "string"
+            },
+            {
+              "id": "raw_text",
+              "name": "raw_text",
+              "value": "={{ $('Start').first().json.raw_text_firstItem }}",
+              "type": "string"
+            },
+            {
+              "id": "email_body",
+              "name": "email_body",
+              "value": "={{ $json.email_body }}",
+              "type": "string"
+            },
+            {
+              "id": "chatname",
+              "name": "chatname",
+              "value": "={{ $('Start').first().json.groupName_firstItem }}",
+              "type": "string"
+            },
+            {
+              "id": "fromuser",
+              "name": "fromuser",
+              "value": "={{ $('Start').first().json.displayName_firstItem }}",
+              "type": "string"
+            },
+            {
+              "id": "userid",
+              "name": "userid",
+              "value": "={{ $('Start').first().json.userId_firstItem }}",
+              "type": "string"
+            },
+            {
+              "id": "groupid",
+              "name": "groupid",
+              "value": "={{ $('Start').first().json.groupId_firstItem }}",
+              "type": "string"
+            },
+            {
+              "id": "created_at",
+              "name": "created_date",
+              "value": "={{ DateTime.fromMillis($('Start').first().json.body_events_firstItem[0].timestamp).setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss') }}",
+              "type": "string"
+            },
+            {
+              "id": "created_by",
+              "name": "created_by",
+              "value": "={{ $('Start').first().json.displayName_firstItem }}",
+              "type": "string"
+            },
+            {
+              "id": "updated_at",
+              "name": "updated_date",
+              "value": "={{ DateTime.fromMillis($('Start').first().json.body_events_firstItem[0].timestamp).setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss') }}",
+              "type": "string"
+            },
+            {
+              "id": "updated_by",
+              "name": "updated_by",
+              "value": "={{ $('Start').first().json.displayName_firstItem }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cda149d9-64d7-4a22-812f-a09fcd3cf522",
+      "name": "Set (ticket)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "table": "[YourDatabase].[dbo].[ticket]",
+        "columns": "message_id, status, assigned_to, assigned_date, intent, category, branch_name, branch_company, subject, clean_text, raw_text, email_body, chatname, fromuser, userid, groupid, created_date, created_by, updated_date, updated_by, sub_category"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        368
+      ],
+      "id": "387e6a9e-4f96-4bde-aa09-31b324515b49",
+      "name": "Microsoft SQL (Insert)",
+      "alwaysOutputData": false,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "22ff0678-b19b-449d-b454-99ce074fcbc4",
+              "leftValue": "={{ $('Start').item.json.action }}",
+              "rightValue": "update",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d9533170-9c92-45f0-bdfc-bfceba50b6cf",
+      "name": "Check Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE [YourDatabase].[dbo].[ticket]\nSET category = $1,\n    intent = $2,\n    sub_category = $3,\n    email_body = $4,\n    subject = $5\nWHERE message_id = $6;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Core Agent').item.json.output.category ?? '',\n  $('Core Agent').item.json.output.intent ?? '',\n  $('Merge').item.json.output.sub_category ?? '',\n  $json.email_body ?? '',\n  $json.subject ?? '',\n  String($('Start').item.json.body_events_firstItem[0].message.id)\n] }}"
+        }
+      },
+      "id": "51cb3dec-6166-4ff6-b2a6-ca8722213140",
+      "name": "Microsoft SQL (Update)",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        176
+      ],
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "table": "[YourDatabase].[dbo].[ticket]",
+        "columns": "message_id, status, assigned_to, assigned_date, intent, category, branch_name, branch_company, subject, clean_text, raw_text, email_body, chatname, fromuser, userid, groupid, created_date, created_by, updated_date, updated_by, sub_category"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "38604399-598e-4784-ad77-32225fd9be64",
+      "name": "Microsoft SQL(OLD)",
+      "alwaysOutputData": false,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Structured Output Sub Category": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Find Sub Category",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sub Category": {
+      "main": [
+        [
+          {
+            "node": "Find Sub Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Sub Category": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Branch Franchise": {
+      "main": [
+        [
+          {
+            "node": "Set Branch Franchise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Branch Franchise": {
+      "main": [
+        [
+          {
+            "node": "Merge Company",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Structured Output Core Agent": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Core Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Sub/Body": {
+      "main": [
+        [
+          {
+            "node": "Set (ticket)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Set Command Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Command Ticket": {
+      "main": [
+        [
+          {
+            "node": "Set Sub/Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "FInd Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FInd Branch": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Sub Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Company": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Category": {
+      "main": [
+        [
+          {
+            "node": "Core Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Branch Main": {
+      "main": [
+        [
+          {
+            "node": "Merge Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Branch Main": {
+      "main": [
+        [
+          {
+            "node": "Set Branch Main",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Core Agent": {
+      "main": [
+        [
+          {
+            "node": "Get Branch Main",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Branch Franchise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Branch": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "FInd Branch",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Core Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "FInd Branch",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Find Sub Category",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Get Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set (ticket)": {
+      "main": [
+        [
+          {
+            "node": "Check Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Action": {
+      "main": [
+        [
+          {
+            "node": "Microsoft SQL (Update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Microsoft SQL (Insert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Microsoft SQL (Update)": {
+      "main": [
+        [
+          {
+            "node": "Call LogSQLServer v1.0.0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Microsoft SQL (Insert)": {
+      "main": [
+        [
+          {
+            "node": "Call LogSQLServer v1.0.0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "versionId": "3c7d0d70-9a8f-46d5-9d85-ee4b00ea4963",
+  "activeVersionId": "3c7d0d70-9a8f-46d5-9d85-ee4b00ea4963",
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": "Version 3c7d0d70",
+    "description": ""
+  }
+}

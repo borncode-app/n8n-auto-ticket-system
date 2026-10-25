@@ -1,0 +1,1531 @@
+{
+  "createdAt": "2026-10-15T07:55:58.405Z",
+  "id": "830saQeWugD6Abxb",
+  "name": "Auto Ticket 1.7.2",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6d7a1864-4157-4958-a9ab-ff89f8c8dc20",
+              "name": "raw_text",
+              "value": "={{ $('Webhook Line').item.json.body.events[0].message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "8cb41b85-f294-4740-af24-894384db5fd1",
+              "name": "clean_text",
+              "value": "={{ $('Webhook Line').item.json.body.events[0].message.text\n    .replace(/@all/ig, \"\")\n    .replace(/\\p{Extended_Pictographic}/gu, \"\") \n    .replace(/:/g, \"\")\n    .replace(/\\s+/g, \" \")\n    .trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "da10145d-c436-42d7-8ef3-bc6c8ee38bf3",
+              "name": "from_ticket",
+              "value": "={{ $('Webhook Line').first().json.body.events[0].message.text.match(/ผู้(?:แ|เเ)จ้ง\\s*[:]?\\s*(.*?)(\\n|$)/)?.[1].trim() || \"ไม่ได้ระบุ\" }} ({{ ($('HTTP - Get Sender Profile').first().json.displayName || '').normalize('NFKC').replace(/[^\\w\\s\\u0E00-\\u0E7F()]/g, '') }})",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -688,
+        336
+      ],
+      "id": "2c3880a3-a0f8-43d3-9f2b-b1223cc2b182",
+      "name": "SET - Normalize Clean Text"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dfe9e94c-4225-4172-baed-4ba282eea79d",
+              "name": "sourceType",
+              "value": "={{ $('Webhook Line').item.json.body.events[0].source.type }}",
+              "type": "string"
+            },
+            {
+              "id": "a348ea42-b098-463c-b203-442a93e35fa1",
+              "name": "userId",
+              "value": "={{ $('Webhook Line').item.json.body.events[0].source.userId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "bf6e52f9-b3a7-44a2-935f-f15229f6cf5f",
+              "name": "groupId",
+              "value": "={{ $('Webhook Line').item.json.body.events[0].source.groupId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "631bbc64-247f-42a3-ad3c-c0a468b8969f",
+              "name": "roomId",
+              "value": "={{ $('Webhook Line').item.json.body.events[0].source.roomId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "7aa37dfc-3fc3-474b-a776-5fb0130e9828",
+              "name": "timpstamp",
+              "value": "={{ DateTime.fromMillis($('Webhook Line').item.json.body.events[0].timestamp).setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss.SSS') }}",
+              "type": "string"
+            },
+            {
+              "id": "ab46b26c-6ef3-4817-90d0-f339f30c9955",
+              "name": "quotedMessageId",
+              "value": "={{ $json.body.events[0].message.quotedMessageId ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "45ef6db4-5487-485c-adf2-f5fa2b175639",
+              "name": "message_id",
+              "value": "={{ $json.body.events[0].message.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1536,
+        256
+      ],
+      "id": "5124622f-4b93-4f8a-b43a-6dabafd5191f",
+      "name": "SET - Extract Sender IDs"
+    },
+    {
+      "parameters": {
+        "url": "={{\n  $json.sourceType === 'group'\n    ? `https://api.line.me/v2/bot/group/${$json.groupId}/member/${$json.userId}`\n    : $json.sourceType === 'room'\n      ? `https://api.line.me/v2/bot/room/${$json.roomId}/member/${$json.userId}`\n      : `https://api.line.me/v2/bot/profile/${$json.userId}`\n}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1360,
+        256
+      ],
+      "id": "26b100e4-c95e-4471-8232-5cba2a21bd82",
+      "name": "HTTP - Get Sender Profile",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "taEN43RaPXagQMcX",
+          "name": "Bearer Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{\n\n  $('SET - Extract Sender IDs').item.json.sourceType === 'group'\n\n    ? `https://api.line.me/v2/bot/group/${$('SET - Extract Sender IDs').item.json.groupId}/summary`\n\n    : $('SET - Extract Sender IDs').item.json.sourceType === 'room'\n\n      ? `https://api.line.me/v2/bot/room/${$('SET - Extract Sender IDs').item.json.roomId}/summary`\n\n      : ''\n\n}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1200,
+        256
+      ],
+      "id": "91f6b239-fb53-4103-b521-5bdb9744c389",
+      "name": "Get Group/Room Summary",
+      "alwaysOutputData": false,
+      "notesInFlow": false,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "taEN43RaPXagQMcX",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "802aeee0-d429-4552-bbac-4b6369133c10",
+              "leftValue": "={{ $('Webhook Line').item.json.body.events[0].message.type }}",
+              "rightValue": "image|video",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -880,
+        320
+      ],
+      "id": "87dfb4aa-174b-46a6-a320-3e6c3c536831",
+      "name": "If image"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "path": "=ftp/{{ $json.filename }}.{{ $binary.image.fileExtension }}",
+        "binaryPropertyName": "image",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.ftp",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        704
+      ],
+      "id": "e0dced95-a157-4fce-8b8d-03c26f4053bc",
+      "name": "FTP",
+      "credentials": {
+        "ftp": {
+          "id": "snp3QvieyhjBYtWH",
+          "name": "FTP account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "url": "=https://api-data.line.me/v2/bot/message/{{ $('Webhook Line').item.json.body.events[0].message.id }}/content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "__REDACTED__"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "image"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -880,
+        496
+      ],
+      "id": "7dccc10f-3e7b-4edf-a447-eaf568e27a76",
+      "name": "Get Image",
+      "alwaysOutputData": true,
+      "notesInFlow": false,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0054ba23-0ef1-479c-90a9-579927f254bb",
+              "name": "filename",
+              "value": "={{ $('HTTP - Get Sender Profile').item.json.displayName.replace(/[^a-zA-Z0-9]/g, '') }}_{{ $now.toFormat('yyyyMMdd_HHmmss') }}_{{ $('Get Group/Room Summary').item.json.groupName.replace(/[^a-zA-Z0-9]/g, '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -864,
+        704
+      ],
+      "id": "d2ce49f5-eada-4364-9813-19b85692eba0",
+      "name": "filename"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "77602de9-5d57-4708-8373-fca7d953f2fe",
+              "name": "raw_text",
+              "value": "==HYPERLINK(\"https://e-learning.example.com//example/{{ $json.filename }}.{{ $binary.image.fileExtension }}\", \"{{ $binary.image.fileExtension === 'mp4' ? 'ดูวิดีโอ' : 'ดูรูปภาพ' }}\")",
+              "type": "string"
+            },
+            {
+              "id": "5764f34d-3f50-459f-a908-32c7675d5c12",
+              "name": "clean_text",
+              "value": "==HYPERLINK(\"https://e-learning.example.com//example/{{ $json.filename }}.{{ $binary.image.fileExtension }}\", \"{{ $binary.image.fileExtension === 'mp4' ? 'ดูวิดีโอ' : 'ดูรูปภาพ' }}\")",
+              "type": "string"
+            },
+            {
+              "id": "86815820-87ee-440e-ae7a-5f83f625b87c",
+              "name": "intent",
+              "value": "IMAGE",
+              "type": "string"
+            },
+            {
+              "id": "e659cc2a-0043-4ac4-be47-182c0641e83f",
+              "name": "category",
+              "value": "IMAGE",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -512,
+        704
+      ],
+      "id": "232bcab3-ed43-432c-8c0e-9be191487bb7",
+      "name": "Upload Image"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook Line').item.json.body.events[0].type }}",
+                    "rightValue": "memberJoined",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    },
+                    "id": "541059ab-4c7b-414d-ba44-fc99c673d762"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "82bbb4ee-7c8f-4897-8596-c322807a59e4",
+                    "leftValue": "={{ $('Webhook Line').item.json.body.events[0].message.type }}",
+                    "rightValue": "sticker",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "019a540a-de14-4eb6-86d0-2b3363ff6c39",
+                    "leftValue": "={{ $('Webhook Line').item.json.body.events[0].type }}",
+                    "rightValue": "unsend",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5a49f66f-b7f2-400e-be0a-030025fc3d17",
+                    "leftValue": "={{ $('Webhook Line').item.json.body.events[0].type }}",
+                    "rightValue": "memberLeft",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -1072,
+        208
+      ],
+      "id": "d06b8510-dc20-499e-872b-d27d05a769f2",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "08bba8df-e97b-4667-a8e8-bc0f8fb73787",
+              "name": "raw_text",
+              "value": "(sticker)",
+              "type": "string"
+            },
+            {
+              "id": "1d60e4b1-f2c4-4ead-9b8a-5b23ee439264",
+              "name": "clean_text",
+              "value": "(sticker)",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1040,
+        1120
+      ],
+      "id": "b097e60b-0376-4e2b-ba23-96e719dc7265",
+      "name": "Set (sticker)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "08bba8df-e97b-4667-a8e8-bc0f8fb73787",
+              "name": "raw_text",
+              "value": "(memberJoined)",
+              "type": "string"
+            },
+            {
+              "id": "1d60e4b1-f2c4-4ead-9b8a-5b23ee439264",
+              "name": "clean_text",
+              "value": "(memberJoined)",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1040,
+        976
+      ],
+      "id": "62d463ad-ab99-4978-aef5-a7a163909f59",
+      "name": "Set (memberJoined)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "08bba8df-e97b-4667-a8e8-bc0f8fb73787",
+              "name": "raw_text",
+              "value": "(memberLeft)",
+              "type": "string"
+            },
+            {
+              "id": "1d60e4b1-f2c4-4ead-9b8a-5b23ee439264",
+              "name": "clean_text",
+              "value": "(memberLeft)",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1040,
+        832
+      ],
+      "id": "cd71942a-b3a0-4eb5-910c-2bde6451c642",
+      "name": "Set (memberLeft)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -1696,
+        256
+      ],
+      "id": "e6e85e6c-055c-4668-8734-8825a0355d4a",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b402f475-ce82-48da-9cbc-cdbe1fa903e3",
+              "leftValue": "={{ $('SET - Normalize Clean Text').first().json.clean_text }}",
+              "rightValue": "สาขา|แผนก",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            },
+            {
+              "id": "d2d4cb67-2c67-41f0-a21e-1aa625b42cdc",
+              "leftValue": "={{ $('SET - Normalize Clean Text').first().json.clean_text }}",
+              "rightValue": "ปัญหา",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "9b6b0ba8-2432-41a6-bff0-b992e0bd69e9",
+              "leftValue": "={{ $('SET - Normalize Clean Text').first().json.clean_text }}",
+              "rightValue": "การแก้ไขปัญหา",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        192
+      ],
+      "id": "cc3a0eab-5444-4933-9f65-a14de7ef5ff8",
+      "name": "If Ticket"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "1904a57e-caaa-45e4-900b-4fd96c94f316",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1952,
+        256
+      ],
+      "id": "198e8357-2d26-453a-a050-11d2f46d4774",
+      "name": "Webhook Line",
+      "webhookId": "63133aeb-f692-4a9f-87e6-76f7c403ae1d"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "qyRChUr2CmYRxwOp",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/qyRChUr2CmYRxwOp",
+          "cachedResultName": "Auto Ticket CoreAI 1.4"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "from_ticket_firstItem": "={{ $('SET - Normalize Clean Text').first().json.from_ticket }}",
+            "body_events_firstItem": "={{ $('Webhook Line').first().json.body.events }}",
+            "groupName_firstItem": "={{ $('Get Group/Room Summary').first().json.groupName }}",
+            "groupId_firstItem": "={{ $('Get Group/Room Summary').first().json.groupId }}",
+            "userId_firstItem": "={{ $('SET - Extract Sender IDs').first().json.userId }}",
+            "displayName_firstItem": "={{ $('HTTP - Get Sender Profile').first().json.displayName }}",
+            "raw_text_firstItem": "={{ $('SET - Normalize Clean Text').first().json.raw_text }}",
+            "clean_text_firstItem": "={{ $('SET - Normalize Clean Text').first().json.clean_text }}",
+            "clean_text": "={{ $('SET - Normalize Clean Text').item.json.clean_text }}",
+            "HTTP__Get_Sender_Profile_userId_firstItem": "={{ $('HTTP - Get Sender Profile').first().json.userId }}",
+            "SET__Normalize_Clean_Text_isExecuted": "={{ $('SET - Normalize Clean Text').isExecuted }}",
+            "raw_text": "={{ $('SET - Normalize Clean Text').item.json.raw_text }}",
+            "action": "insert"
+          },
+          "matchingColumns": [
+            "from_ticket_firstItem",
+            "body_events_firstItem",
+            "groupName_firstItem",
+            "groupId_firstItem",
+            "userId_firstItem",
+            "displayName_firstItem",
+            "raw_text_firstItem",
+            "clean_text_firstItem",
+            "clean_text",
+            "HTTP__Get_Sender_Profile_userId_firstItem",
+            "SET__Normalize_Clean_Text_isExecuted",
+            "raw_text",
+            "Upload_Image_isExecuted",
+            "Upload_Image_clean_text"
+          ],
+          "schema": [
+            {
+              "id": "from_ticket_firstItem",
+              "displayName": "from_ticket_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "body_events_firstItem",
+              "displayName": "body_events_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "groupName_firstItem",
+              "displayName": "groupName_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "groupId_firstItem",
+              "displayName": "groupId_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "userId_firstItem",
+              "displayName": "userId_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "displayName_firstItem",
+              "displayName": "displayName_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_text_firstItem",
+              "displayName": "raw_text_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clean_text_firstItem",
+              "displayName": "clean_text_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clean_text",
+              "displayName": "clean_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "HTTP__Get_Sender_Profile_userId_firstItem",
+              "displayName": "HTTP__Get_Sender_Profile_userId_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SET__Normalize_Clean_Text_isExecuted",
+              "displayName": "SET__Normalize_Clean_Text_isExecuted",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_text",
+              "displayName": "raw_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        176
+      ],
+      "name": "Call Auto Ticket CoreAI",
+      "id": "bf7a305e-3ca6-4e64-b953-f6f32a29027b",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT TOP 1 *\nFROM [YourDatabase].[dbo].[n8n_it_team]\nWHERE [userId] = $1;",
+        "options": {
+          "queryReplacement": "={{ [\n  String($('SET - Extract Sender IDs').item.json.userId)\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        -352,
+        336
+      ],
+      "id": "f8901725-bdba-4d9f-b742-9e116bbc0051",
+      "name": "Get IT Team",
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "122b146f-fdb9-4211-b488-ee0ff1dc063a",
+              "leftValue": "={{ $json.active }}",
+              "rightValue": "Y",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -192,
+        336
+      ],
+      "id": "010c8102-1898-4561-96f1-336f06e4a333",
+      "name": "If not IT Team"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE [YourDatabase].[dbo].[ticket]\nSET \n  status = 'unsent',\n  assigned_to = '(unsent)',\n  assigned_date = GETDATE(),\n  updated_date = GETDATE(),\n  updated_by = 'System_Unsend'\nWHERE message_id = '{{ $('Webhook Line').item.json.body.events[0].unsend.messageId }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        -880,
+        1280
+      ],
+      "id": "43b48b78-e1a7-4795-ab04-98bb78dfc888",
+      "name": "Update Unsend Status (SQL)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q3ybqMcKYHUTu4qg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q3ybqMcKYHUTu4qg",
+          "cachedResultName": "LogSQLServer 1.0.1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "table_name": "[YourDatabase].[dbo].[ticket]",
+            "action_type": "UNSEND",
+            "datetime": "={{ $('SET - Extract Sender IDs').item.json.timpstamp }}",
+            "message_id": "={{ $('Webhook Line').item.json.body.events[0].unsend.messageId }}",
+            "by": "={{ $('HTTP - Get Sender Profile').item.json.displayName }}",
+            "value": "=Unsend Ticket {{ $('Webhook Line').item.json.body.events[0].unsend.messageId }}"
+          },
+          "matchingColumns": [
+            "table_name",
+            "action_type",
+            "field_name",
+            "new_value",
+            "body_events_firstItem"
+          ],
+          "schema": [
+            {
+              "id": "table_name",
+              "displayName": "table_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_type",
+              "displayName": "action_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "datetime",
+              "displayName": "datetime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "by",
+              "displayName": "by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -672,
+        1280
+      ],
+      "name": "Call LogSQLServer v1.0.0",
+      "id": "9a54f919-8514-421e-b5ec-cd031e679c97"
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1040,
+        1280
+      ],
+      "id": "cb811743-b9c6-4467-989f-05251d922490",
+      "name": "Wait",
+      "webhookId": "561b5940-cbd7-4446-ba83-bc15133828f7"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "USgdNP1aNHh1QJg3",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/USgdNP1aNHh1QJg3",
+          "cachedResultName": "Auto Close Ticket 1.3"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "clean_text": "={{ $('SET - Normalize Clean Text').first().json.clean_text }}",
+            "quotedMessageId": "={{ $('Webhook Line').first().json.body.events[0].message.quotedMessageId }}",
+            "userId": "={{ $('Webhook Line').first().json.body.events[0].source.userId }}"
+          },
+          "matchingColumns": [
+            "clean_text",
+            "body_events"
+          ],
+          "schema": [
+            {
+              "id": "clean_text",
+              "displayName": "clean_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "quotedMessageId",
+              "displayName": "quotedMessageId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        0
+      ],
+      "name": "Call Auto Close Ticket",
+      "id": "77b34ee7-b2ed-4968-96d4-e25a3ae1aa01",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "4tIlVjstYxU09G6a",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/4tIlVjstYxU09G6a",
+          "cachedResultName": "Auto Assign 1.2.1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "quotedMessageId": "={{ $('SET - Extract Sender IDs').first().json.quotedMessageId }}",
+            "userId": "={{ $('SET - Extract Sender IDs').first().json.userId }}",
+            "body_events_firstItem": "={{ $('Webhook Line').first().json.body.events }}",
+            "groupId_firstItem": "={{ $('Get Group/Room Summary').first().json.groupId }}",
+            "userId_firstItem": "={{ $('HTTP - Get Sender Profile').first().json.userId }}",
+            "displayName_firstItem": "={{ $('HTTP - Get Sender Profile').first().json.displayName }}",
+            "raw_text_firstItem": "={{ $('SET - Normalize Clean Text').first().json.raw_text }}",
+            "SET__Normalize_Clean_Text_isExecuted": "={{ $('SET - Normalize Clean Text').isExecuted }}",
+            "raw_text": "={{ $('SET - Normalize Clean Text').first().json.raw_text }}",
+            "Upload_Image_isExecuted": "={{ $('Upload Image').isExecuted }}",
+            "clean_text_firstItem": "={{ $('SET - Normalize Clean Text').first().json.clean_text }}",
+            "clean_text": "={{ $('SET - Normalize Clean Text').first().json.clean_text }}",
+            "groupName_firstItem": "={{ $('Get Group/Room Summary').first().json.groupName }}",
+            "body_events": "={{ $('Webhook Line').first().json.body.events }}",
+            "datetime": "={{ $('SET - Extract Sender IDs').first().json.timpstamp }}"
+          },
+          "matchingColumns": [
+            "quotedMessageId",
+            "userId",
+            "body_events_firstItem",
+            "groupId_firstItem",
+            "userId_firstItem",
+            "displayName_firstItem",
+            "raw_text_firstItem",
+            "SET__Normalize_Clean_Text_isExecuted",
+            "raw_text",
+            "Upload_Image_isExecuted",
+            "clean_text_firstItem",
+            "clean_text",
+            "groupName_firstItem",
+            "body_events"
+          ],
+          "schema": [
+            {
+              "id": "quotedMessageId",
+              "displayName": "quotedMessageId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "body_events_firstItem",
+              "displayName": "body_events_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "groupId_firstItem",
+              "displayName": "groupId_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "userId_firstItem",
+              "displayName": "userId_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "displayName_firstItem",
+              "displayName": "displayName_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_text_firstItem",
+              "displayName": "raw_text_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SET__Normalize_Clean_Text_isExecuted",
+              "displayName": "SET__Normalize_Clean_Text_isExecuted",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_text",
+              "displayName": "raw_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Upload_Image_isExecuted",
+              "displayName": "Upload_Image_isExecuted",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clean_text_firstItem",
+              "displayName": "clean_text_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clean_text",
+              "displayName": "clean_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "groupName_firstItem",
+              "displayName": "groupName_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "body_events",
+              "displayName": "body_events",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "datetime",
+              "displayName": "datetime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "name": "Call Auto Assign",
+      "id": "575aa740-22f7-4cd8-b793-59fb5e3c8f98",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "122b146f-fdb9-4211-b488-ee0ff1dc063a",
+              "leftValue": "={{ $('Webhook Line').item.json.body.events[0].source.groupId }}",
+              "rightValue": "=YOUR_LINE_IT_GROUP_ID_1",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "9a798ac3-f238-4e2d-b984-c18f6cdb5c84",
+              "leftValue": "={{ $('Webhook Line').item.json.body.events[0].source.groupId }}",
+              "rightValue": "=YOUR_LINE_IT_GROUP_ID_2",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -512,
+        208
+      ],
+      "id": "9a99a110-ffc4-4e44-8eda-dcd343fb6091",
+      "name": "If IT Group"
+    }
+  ],
+  "connections": {
+    "SET - Normalize Clean Text": {
+      "main": [
+        [
+          {
+            "node": "If IT Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SET - Extract Sender IDs": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Get Sender Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Get Sender Profile": {
+      "main": [
+        [
+          {
+            "node": "Get Group/Room Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Group/Room Summary": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If image": {
+      "main": [
+        [
+          {
+            "node": "Get Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SET - Normalize Clean Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FTP": {
+      "main": [
+        [
+          {
+            "node": "Upload Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Image": {
+      "main": [
+        [
+          {
+            "node": "filename",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filename": {
+      "main": [
+        [
+          {
+            "node": "FTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Set (memberJoined)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set (sticker)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set (memberLeft)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "SET - Extract Sender IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Ticket": {
+      "main": [
+        [
+          {
+            "node": "Call Auto Ticket CoreAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Line": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get IT Team": {
+      "main": [
+        [
+          {
+            "node": "If not IT Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If not IT Team": {
+      "main": [
+        [
+          {
+            "node": "Call Auto Assign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Unsend Status (SQL)": {
+      "main": [
+        [
+          {
+            "node": "Call LogSQLServer v1.0.0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Update Unsend Status (SQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Auto Assign": {
+      "main": [
+        [
+          {
+            "node": "Call Auto Close Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If IT Group": {
+      "main": [
+        [
+          {
+            "node": "Call Auto Assign",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get IT Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "versionId": "123e4df8-70a9-4e39-8b49-eaec977f0f7b",
+  "activeVersionId": "123e4df8-70a9-4e39-8b49-eaec977f0f7b",
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": "Version 123e4df8",
+    "description": ""
+  }
+}

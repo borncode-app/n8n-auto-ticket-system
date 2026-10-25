@@ -1,0 +1,168 @@
+{
+  "createdAt": "2026-09-30T13:48:12.051Z",
+  "id": "JFTQnofpdNn7P3lV",
+  "name": "Send Email (Graph)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "toEmail"
+            },
+            {
+              "name": "subject"
+            },
+            {
+              "name": "emailFormat"
+            },
+            {
+              "name": "text"
+            },
+            {
+              "name": "html"
+            },
+            {
+              "name": "ccEmail"
+            },
+            {
+              "name": "bccEmail"
+            },
+            {
+              "name": "replyTo"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        -144
+      ],
+      "id": "6efcdc45-5a46-489b-ba4c-10cb76b954b3",
+      "name": "Start"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const i = $json;\nconst list = s => String(s || '').split(/[,;]/).map(x => x.trim()).filter(Boolean).map(a => ({ emailAddress: { address: a } }));\nconst isHtml = String(i.emailFormat || 'text').toLowerCase() === 'html';\nconst message = {\n  subject: i.subject || '',\n  body: { contentType: isHtml ? 'HTML' : 'Text', content: isHtml ? (i.html || i.text || '') : (i.text || '') },\n  toRecipients: list(i.toEmail)\n};\nif (i.ccEmail) message.ccRecipients = list(i.ccEmail);\nif (i.bccEmail) message.bccRecipients = list(i.bccEmail);\nif (i.replyTo) message.replyTo = list(i.replyTo);\nreturn { json: { payload: { message, saveToSentItems: true }, toEmail: i.toEmail, subject: i.subject } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -144
+      ],
+      "id": "c3463310-8254-437a-b5af-8197113d27cf",
+      "name": "Build Graph payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.microsoft.com/v1.0/me/sendMail",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        544,
+        -144
+      ],
+      "id": "f348c08c-5dc5-4fa3-8d1f-0d5afb6b4105",
+      "name": "Graph sendMail",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "oAuth2Api": {
+          "id": "1tmxqlspVOZyo9cR",
+          "name": "helpdesk.t"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const r = $json;\nconst req = $('Build Graph payload').item.json;\nconst err = r.error;\nconst ok = !err && r.statusCode === 202;\nreturn { json: {\n  success: ok,\n  status: ok ? 'sent' : 'failed',\n  statusCode: r.statusCode ?? err?.httpCode ?? null,\n  message: ok ? 'Email accepted by Microsoft Graph' : (typeof err === 'string' ? err : (err?.message || JSON.stringify(r.body || r))),\n  toEmail: req.toEmail,\n  subject: req.subject,\n  sentAt: $now.toISO()\n} };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        -144
+      ],
+      "id": "4895f482-5f3c-4040-90ee-a5bb706b9fb7",
+      "name": "Result"
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Build Graph payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Graph payload": {
+      "main": [
+        [
+          {
+            "node": "Graph sendMail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Graph sendMail": {
+      "main": [
+        [
+          {
+            "node": "Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "V7eRnHnXtdb4QAo2",
+    "timezone": "Asia/Bangkok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "versionId": "aaf61c3e-c598-4453-9dbc-7d0dcdc073d5",
+  "activeVersionId": "aaf61c3e-c598-4453-9dbc-7d0dcdc073d5",
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": "Version aaf61c3e",
+    "description": ""
+  }
+}

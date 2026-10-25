@@ -1,0 +1,133 @@
+{
+  "createdAt": "2026-05-21T03:14:06.295Z",
+  "id": "V7eRnHnXtdb4QAo2",
+  "name": "Error Notify Telegram",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1253d59e-069b-48ef-b80b-0c261190f7cf",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        304
+      ],
+      "notes": "Fired when any workflow with this error workflow configured encounters an error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const errorData = $input.first().json;\n\nconst execution = errorData.execution || {};\nconst execError = execution.error || {};\nconst workflowInfo = errorData.workflow || {};\nconst execContext = execution.executionContext || {};\n\nconst workflowName = workflowInfo.name || 'Unknown Workflow';\nconst workflowId = workflowInfo.id || 'N/A';\nconst executionId = execution.id || 'N/A';\nconst executionUrl = execution.url || 'N/A';\n\nconst errorNodeInfo = execError.node || {};\nconst errorNode = errorNodeInfo.name || execution.lastNodeExecuted || 'Unknown Node';\nconst errorNodeType = errorNodeInfo.type || 'N/A';\nconst errorMessage = execError.message || 'No error message';\nconst errorDescription = execError.description || '';\nconst errorStack = execError.stack || '';\n\nconst timestamp = execContext.establishedAt\n  ? new Date(execContext.establishedAt).toISOString()\n  : new Date().toISOString();\n\n// Throttle: the same error (workflow + node + message) is sent to Telegram at\n// most once per THROTTLE_MS. Repeats are counted and reported on the next send.\nconst THROTTLE_MS = 10 * 60 * 1000;\nconst staticData = $getWorkflowStaticData('global');\nconst throttle = staticData.errorThrottle || (staticData.errorThrottle = {});\nconst now = Date.now();\nfor (const [k, v] of Object.entries(throttle)) {\n  if (now - v.lastSent > THROTTLE_MS * 6) delete throttle[k];\n}\nconst throttleKey = [workflowId, errorNode, String(errorMessage).slice(0, 200)].join('|');\nconst prev = throttle[throttleKey];\nif (prev && now - prev.lastSent < THROTTLE_MS) {\n  prev.suppressed = (prev.suppressed || 0) + 1;\n  return [];\n}\nconst suppressedCount = prev ? prev.suppressed || 0 : 0;\nthrottle[throttleKey] = { lastSent: now, suppressed: 0 };\n\n// Escape HTML entities to prevent Telegram parse errors\n// Telegram HTML parser is strict — <anonymous> in stack traces breaks it\nconst escapeHtml = (str) => {\n  if (!str) return '';\n  return String(str)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;');\n};\n\nconst truncate = (str, maxLen = 3000) => {\n  if (!str) return 'N/A';\n  const s = String(str);\n  return s.length > maxLen ? s.substring(0, maxLen) + '...' : s;\n};\n\nconst safeMessage = escapeHtml(truncate(errorMessage, 1000));\nconst safeDescription = escapeHtml(truncate(errorDescription, 500));\nconst safeStack = escapeHtml(truncate(errorStack, 2000));\nconst safeWorkflowName = escapeHtml(workflowName);\nconst safeErrorNode = escapeHtml(errorNode);\nconst safeErrorNodeType = escapeHtml(errorNodeType);\nconst safeMode = escapeHtml(execution.mode || 'N/A');\nconst safeLastNode = escapeHtml(execution.lastNodeExecuted || '');\n\nconst message = `\n🔴 <b>Workflow Error Alert</b>\n\n📋 <b>Workflow:</b> ${safeWorkflowName}\n🆔 <b>Workflow ID:</b> <code>${escapeHtml(workflowId)}</code>\n⏰ <b>Time:</b> ${new Date(timestamp).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}\n\n⚠️ <b>Error Node:</b> ${safeErrorNode}\n📌 <b>Node Type:</b> ${safeErrorNodeType}\n❌ <b>Error:</b> ${safeDescription}\n💬 <b>Message:</b>\n<code>${safeMessage}</code>\n\n🔗 <b>Execution:</b> <a href=\"${executionUrl}\">${escapeHtml(executionId)}</a>\n🔍 <b>Mode:</b> ${safeMode}\n${safeLastNode ? '🏃 <b>Last Node:</b> ' + safeLastNode : ''}\n${suppressedCount ? '🔁 <b>Repeated:</b> ' + suppressedCount + ' more time(s) since the last alert' : ''}\n\n📝 <b>Stack Trace:</b>\n<code>${safeStack}</code>\n`.trim();\n\nreturn [{\n  json: {\n    workflowName,\n    workflowId,\n    executionId,\n    executionUrl,\n    errorNode,\n    errorNodeType,\n    errorMessage: truncate(errorMessage, 500),\n    errorDescription,\n    timestamp,\n    message\n  }\n}];"
+      },
+      "id": "ae641340-1386-4b40-aeab-c7b6b7d5926a",
+      "name": "Format Error Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        304
+      ],
+      "notes": "Parse error data and build a formatted Telegram message"
+    },
+    {
+      "parameters": {
+        "chatId": "1111111111",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "1a09cb85-e13a-41b0-913f-218aa6217185",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2688,
+        304
+      ],
+      "webhookId": "45e8f8ed-8ae3-4a29-a759-7b82277a943b",
+      "retryOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "Ii5B0ojoMurClJ7p",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Replace YOUR_TELEGRAM_CHAT_ID with your target chat/channel ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Audit log for the notification\nconst data = $input.first().json;\n\nconst logEntry = {\n  workflow_name: data.workflowName,\n  workflow_id: data.workflowId,\n  execution_id: data.executionId,\n  error_node: data.errorNode,\n  error_message: data.errorMessage,\n  notified_at: data.timestamp\n};\n\nconsole.log('Error notification sent:', JSON.stringify(logEntry, null, 2));\n\nreturn [{ json: { ...data, logged: true, logEntry } }];"
+      },
+      "id": "bb3aa3e8-1277-4941-aaff-11f6b5df6379",
+      "name": "Log Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        304
+      ],
+      "notes": "Optional: Log the notification for audit trail"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Message": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram": {
+      "main": [
+        [
+          {
+            "node": "Log Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "V7eRnHnXtdb4QAo2",
+    "timezone": "Asia/Bangkok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "versionId": "2f39261d-6759-489a-b03d-79eb1c060042",
+  "activeVersionId": "2f39261d-6759-489a-b03d-79eb1c060042",
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": "Version ad3df473",
+    "description": ""
+  }
+}

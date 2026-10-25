@@ -1,0 +1,1090 @@
+{
+  "createdAt": "2026-01-05T03:39:47.795Z",
+  "id": "1E9wbs2PTKpYQIEX",
+  "name": "Manual Ticket 1.1.0",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Manual Ticket",
+        "formDescription": "เลือกการทำงาน: ปิด Ticket หรือ ลบ Ticket ด้วยตนเอง",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "action",
+              "fieldType": "dropdown",
+              "fieldName": "action",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "ปิด Ticket"
+                  },
+                  {
+                    "option": "ลบ Ticket"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7708206a-0fcd-4670-95e9-a86390335095",
+      "name": "On form submission",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        3296,
+        -112
+      ],
+      "webhookId": "05e75246-846e-41ae-b226-d679be4c29b2",
+      "notesInFlow": true,
+      "notes": "## Manual Ticket Form (Page 1)\n\nเลือกการทำงาน:\n- \"ปิด Ticket\" → หน้า Close Ticket Form\n- \"ลบ Ticket\" → หน้า Delete Ticket Form"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check_action_close",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "ปิด Ticket",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3520,
+        -112
+      ],
+      "id": "a64253d2-3b5f-45ba-9251-3293958c0b28",
+      "name": "Check Action",
+      "notesInFlow": true,
+      "notes": "ตรวจ action จากฟอร์มหน้า 1\n- true: \"ปิด Ticket\" → สายปิด Ticket\n- false: \"ลบ Ticket\" → สายลบ Ticket"
+    },
+    {
+      "parameters": {
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3744,
+        -112
+      ],
+      "id": "f306e51c-b653-4948-84b2-1823bf3f50eb",
+      "name": "Prepare Close Form",
+      "notesInFlow": true,
+      "notes": "Passthrough (no-op)\nกัน bug n8n: Form node ไม่เปิดเมื่อต่อจาก branch ตรง ๆ"
+    },
+    {
+      "parameters": {
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "messageId",
+              "fieldName": "messageId",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "close_cause",
+              "fieldType": "textarea",
+              "fieldName": "close_cause",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "close_reason",
+              "fieldType": "textarea",
+              "fieldName": "close_reason",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "formTitle": "ปิด Ticket",
+          "formDescription": "กรอก Message ID ของ ticket ที่ต้องการปิด, อาการ/ปัญหา และการแก้ไขปัญหา",
+          "buttonLabel": "ปิด Ticket"
+        }
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        3968,
+        -112
+      ],
+      "id": "d8788850-883e-426e-8fe0-9a524b2f44f5",
+      "name": "Close Ticket Form",
+      "webhookId": "4c5b4d70-4873-40df-a631-02b2dfcc69cc",
+      "notesInFlow": true,
+      "notes": "หน้า 2 (ปิด Ticket)\nกรอก messageId, close_cause, close_reason"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT TOP 1 *\nFROM [YourDatabase].[dbo].[ticket]\nWHERE message_id = $1\n  AND status = 'assigned';",
+        "options": {
+          "queryReplacement": "={{ [\n  String($('Close Ticket Form').item.json.messageId)\n] }}"
+        }
+      },
+      "id": "c81879a6-7aba-4eb3-91ee-526d6459a1d5",
+      "name": "Find Ticket",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        4192,
+        -112
+      ],
+      "alwaysOutputData": false,
+      "notesInFlow": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "ค้นหา ticket ที่ status='assigned'\nโดย message_id จากฟอร์ม"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check_not_empty_1",
+              "leftValue": "={{ Object.keys($json).length === 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c6f23088-d4d7-4edd-a2e7-a166da016835",
+      "name": "If notEmpty",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4416,
+        -112
+      ],
+      "notesInFlow": true,
+      "notes": "ตรวจสอบว่าเจอ ticket\nถ้าไม่เจอ = stop"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT TOP 1 *\nFROM [YourDatabase].[dbo].[it_team]\nWHERE userId = '{{ $json.assigned_to }}';",
+        "options": {}
+      },
+      "id": "4b508bb8-1190-4505-9a34-e745b3889c52",
+      "name": "Match IT Team",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        4640,
+        -112
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "หา IT staff จาก ticket.userid\nถ้าไม่เจอก็ continue ต่อ"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "qyRChUr2CmYRxwOp",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/qyRChUr2CmYRxwOp",
+          "cachedResultName": "Auto Ticket CoreAI 1.4"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "action": "update",
+            "raw_text": "={{ $('Find Ticket').item.json.clean_text }}\nการแก้ไขปัญหา: {{ $('Close Ticket Form').item.json.close_reason }}",
+            "clean_text": "={{ $('Find Ticket').item.json.clean_text }}\nการแก้ไขปัญหา: {{ $('Close Ticket Form').item.json.close_reason }}",
+            "from_ticket_firstItem": "={{ $('Find Ticket').item.json.fromuser }}",
+            "groupName_firstItem": "={{ $('Find Ticket').item.json.chatname }}",
+            "groupId_firstItem": "={{ $('Find Ticket').item.json.groupid }}",
+            "userId_firstItem": "={{ $('Find Ticket').item.json.userid }}",
+            "displayName_firstItem": "={{ $('Find Ticket').item.json.fromuser }}",
+            "HTTP__Get_Sender_Profile_userId_firstItem": "={{ $('Find Ticket').item.json.userid }}",
+            "SET__Normalize_Clean_Text_isExecuted": true,
+            "body_events_firstItem": "={{ [{ message: { id: $('Find Ticket').item.json.message_id }, timestamp: new Date($('Find Ticket').item.json.created_date).getTime() }] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "from_ticket_firstItem",
+              "displayName": "from_ticket_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "body_events_firstItem",
+              "displayName": "body_events_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "groupName_firstItem",
+              "displayName": "groupName_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "groupId_firstItem",
+              "displayName": "groupId_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userId_firstItem",
+              "displayName": "userId_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "displayName_firstItem",
+              "displayName": "displayName_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "raw_text_firstItem",
+              "displayName": "raw_text_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clean_text_firstItem",
+              "displayName": "clean_text_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "clean_text",
+              "displayName": "clean_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "HTTP__Get_Sender_Profile_userId_firstItem",
+              "displayName": "HTTP__Get_Sender_Profile_userId_firstItem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SET__Normalize_Clean_Text_isExecuted",
+              "displayName": "SET__Normalize_Clean_Text_isExecuted",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "raw_text",
+              "displayName": "raw_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5c24850b-f41e-4c1b-9b82-59323c003b34",
+      "name": "Call Auto Ticket CoreAI",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        4864,
+        -112
+      ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notesInFlow": true,
+      "notes": "เรียก CoreAI แบบ update\nใส่ข้อมูลการแก้ไขปัญหา\nCoreAI จะ re-classify + อัพเดท ticket"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT TOP 1 *\nFROM [YourDatabase].[dbo].[ticket]\nWHERE message_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [\n  String($('Close Ticket Form').item.json.messageId)\n] }}"
+        }
+      },
+      "id": "a54d33c3-c469-4742-a124-be144dfad3eb",
+      "name": "Find Ticket After CoreAI",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        5088,
+        -112
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "ดึง ticket อีกรอบหลัง CoreAI อัพเดท\nเพื่อเอา email_body ที่ใหม่"
+    },
+    {
+      "parameters": {
+        "fromEmail": "helpdesk@example.com",
+        "toEmail": "helpdesk@example.com",
+        "subject": "={{ $('Find Ticket After CoreAI').item.json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $('Find Ticket After CoreAI').item.json.email_body }}\n#set วันที่ปิด Ticket={{ $now.toFormat('dd-MM-yyyy') }}\n#set เวลาปิด Ticket={{ $now.toFormat('HH:mm:ss') }}\n#assign {{ $('Match IT Team').item.json?.email_spiceworks || '' }}\n#set สาเหตุ={{ $('Close Ticket Form').item.json.close_cause }}\n#set การแก้ไขปัญหา={{ $('Close Ticket Form').item.json.close_reason }}\n#close",
+        "options": {
+          "appendAttribution": false,
+          "attachments": ""
+        }
+      },
+      "id": "873af7d7-a07d-4b35-af20-2eb16519f097",
+      "name": "Send email To DavMail",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        5328,
+        -288
+      ],
+      "webhookId": "80cc3563-9de4-4d51-bf92-1e4b8acbe216",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "notesInFlow": true,
+      "credentials": {
+        "smtp": {
+          "id": "o2kgNvpcg8y3t93j",
+          "name": "DavMail"
+        }
+      },
+      "disabled": true,
+      "notes": "ส่งอีเมล #close\nใช้ email_body จาก Find Ticket After CoreAI"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE [YourDatabase].[dbo].[ticket]\nSET status = 'closed',\n    close_cause = $1,\n    close_reason = $2,\n    updated_date = GETDATE(),\n    updated_by = $3,\n    close_time_minute = CASE \n    WHEN DATEDIFF(MINUTE, created_date, GETDATE()) - 1 < 0 THEN 0 \n    ELSE DATEDIFF(MINUTE, created_date, GETDATE()) - 1 \nEND\nWHERE message_id = $4;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Close Ticket Form').item.json.close_cause ?? '',\n  $('Close Ticket Form').item.json.close_reason ?? '',\n  $('Match IT Team').item.json?.userId || 'manual-ticket',\n  String($('Close Ticket Form').item.json.messageId)\n] }}"
+        }
+      },
+      "id": "d8384cae-cfbe-477c-9521-88f3e0c55b3d",
+      "name": "Update Ticket Status",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        5536,
+        -112
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "notes": "UPDATE status='closed'\n+ close_cause, close_reason, close_time_minute"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q3ybqMcKYHUTu4qg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q3ybqMcKYHUTu4qg",
+          "cachedResultName": "LogSQLServer 1.0.1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "table_name": "[YourDatabase].[dbo].[ticket]",
+            "action_type": "CLOSE",
+            "message_id": "={{ $('Find Ticket').first().json.message_id }}",
+            "datetime": "={{ $now.toDateTime().toFormat('yyyy-MM-dd HH:mm:ss.SSS') }}",
+            "by": "={{ $('Match IT Team').item.json?.fromUser || 'Manual' }}",
+            "value": "=Manual Closed Ticket {{ $('Close Ticket Form').item.json.messageId }}"
+          },
+          "matchingColumns": [
+            "table_name",
+            "action_type",
+            "field_name",
+            "new_value",
+            "body_events_firstItem"
+          ],
+          "schema": [
+            {
+              "id": "table_name",
+              "displayName": "table_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_type",
+              "displayName": "action_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "datetime",
+              "displayName": "datetime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "by",
+              "displayName": "by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "id": "b085d589-9814-4bc8-95c8-36a30f17a2f5",
+      "name": "Call LogSQLServer",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        5760,
+        -112
+      ],
+      "notesInFlow": true,
+      "notes": "Audit log — action_type: CLOSE"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "ปิด Ticket สำเร็จ ✓",
+        "completionMessage": "Ticket ถูกปิดและส่งข้อมูลไปยัง Spiceworks เรียบร้อยแล้ว",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        5984,
+        -112
+      ],
+      "id": "006cb90c-0df4-405f-8315-15dc3747a173",
+      "name": "Close Complete",
+      "webhookId": "a344affe-6202-4308-9e97-b0e18fcae2b7",
+      "notesInFlow": true,
+      "notes": "Form Ending — ปิด Ticket สำเร็จ"
+    },
+    {
+      "parameters": {
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3744,
+        288
+      ],
+      "id": "642ef1bd-e743-46c0-98fe-ff1ea627a746",
+      "name": "Prepare Delete Form",
+      "notesInFlow": true,
+      "notes": "Passthrough (no-op)\nกัน bug n8n: Form node ไม่เปิดเมื่อต่อจาก branch ตรง ๆ"
+    },
+    {
+      "parameters": {
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "messageId",
+              "fieldName": "messageId",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "formTitle": "ลบ Ticket",
+          "formDescription": "กรอก Message ID ของ ticket ที่ต้องการลบ — การลบไม่สามารถย้อนกลับได้",
+          "buttonLabel": "ลบ Ticket"
+        }
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        3968,
+        288
+      ],
+      "id": "9464e3be-f15d-4341-99b9-07b3ed10b2a5",
+      "name": "Delete Ticket Form",
+      "webhookId": "8062b118-b037-45a6-96fc-cf5fd19bd527",
+      "notesInFlow": true,
+      "notes": "หน้า 2 (ลบ Ticket)\nกรอก messageId แล้วกด \"ลบ Ticket\""
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM [YourDatabase].[dbo].[ticket]\nWHERE message_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [\n  String($('Delete Ticket Form').item.json.messageId)\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        4192,
+        288
+      ],
+      "id": "cc4deb08-aa38-423e-9e8d-6a005ba9e74d",
+      "name": "Delete Ticket",
+      "notesInFlow": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "DlMjRKIkdeMbyUDh",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "notes": "DELETE ticket ตาม message_id\nลบตรง ๆ ไม่เช็ค status"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q3ybqMcKYHUTu4qg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q3ybqMcKYHUTu4qg",
+          "cachedResultName": "LogSQLServer 1.0.1"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "table_name": "[YourDatabase].[dbo].[ticket]",
+            "action_type": "DELETE",
+            "message_id": "={{ $('Delete Ticket Form').item.json.messageId }}",
+            "datetime": "={{ $now.toDateTime().toFormat('yyyy-MM-dd HH:mm:ss.SSS') }}",
+            "by": "Manual",
+            "value": "=Manual Deleted Ticket {{ $('Delete Ticket Form').item.json.messageId }}"
+          },
+          "matchingColumns": [
+            "table_name",
+            "action_type",
+            "field_name",
+            "new_value",
+            "body_events_firstItem"
+          ],
+          "schema": [
+            {
+              "id": "table_name",
+              "displayName": "table_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_type",
+              "displayName": "action_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "datetime",
+              "displayName": "datetime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "by",
+              "displayName": "by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "id": "f9ca6b81-0570-49f1-9151-dd946d5b497b",
+      "name": "Call LogSQLServer Delete",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        4416,
+        288
+      ],
+      "notesInFlow": true,
+      "notes": "Audit log — action_type: DELETE"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "ลบ Ticket สำเร็จ ✓",
+        "completionMessage": "Ticket ถูกลบออกจากฐานข้อมูลเรียบร้อยแล้ว",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        4640,
+        288
+      ],
+      "id": "6f0c7a8e-c7e3-4188-b197-a410469d4b98",
+      "name": "Delete Complete",
+      "webhookId": "037bce89-32a4-4f31-a734-8ceaf8d7db06",
+      "notesInFlow": true,
+      "notes": "Form Ending — ลบ Ticket สำเร็จ"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "JFTQnofpdNn7P3lV",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/JFTQnofpdNn7P3lV",
+          "cachedResultName": "Send Email (Graph)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "toEmail": "helpdesk@example.com",
+            "subject": "={{ $('Find Ticket After CoreAI').item.json.subject }}",
+            "emailFormat": "text",
+            "text": "={{ $('Find Ticket After CoreAI').item.json.email_body }}\n#set วันที่ปิด Ticket={{ $now.toFormat('dd-MM-yyyy') }}\n#set เวลาปิด Ticket={{ $now.toFormat('HH:mm:ss') }}\n#assign {{ $('Match IT Team').item.json?.email_spiceworks || '' }}\n#set สาเหตุ={{ $('Close Ticket Form').item.json.close_cause }}\n#set การแก้ไขปัญหา={{ $('Close Ticket Form').item.json.close_reason }}\n#close"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "toEmail",
+              "displayName": "toEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "emailFormat",
+              "displayName": "emailFormat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "html",
+              "displayName": "html",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "ccEmail",
+              "displayName": "ccEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "bccEmail",
+              "displayName": "bccEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "replyTo",
+              "displayName": "replyTo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        5328,
+        -112
+      ],
+      "id": "5f5c4e0e-412a-429e-8397-c449b9853a53",
+      "name": "Send email via Graph",
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "notes": "ส่งอีเมล #close ผ่าน Graph\nใช้ email_body จาก Find Ticket After CoreAI"
+    }
+  ],
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Check Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Action": {
+      "main": [
+        [
+          {
+            "node": "Prepare Close Form",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Delete Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Close Form": {
+      "main": [
+        [
+          {
+            "node": "Close Ticket Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close Ticket Form": {
+      "main": [
+        [
+          {
+            "node": "Find Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Ticket": {
+      "main": [
+        [
+          {
+            "node": "If notEmpty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If notEmpty": {
+      "main": [
+        [
+          {
+            "node": "Match IT Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match IT Team": {
+      "main": [
+        [
+          {
+            "node": "Call Auto Ticket CoreAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Auto Ticket CoreAI": {
+      "main": [
+        [
+          {
+            "node": "Find Ticket After CoreAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Ticket After CoreAI": {
+      "main": [
+        [
+          {
+            "node": "Send email via Graph",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email To DavMail": {
+      "main": [
+        []
+      ]
+    },
+    "Update Ticket Status": {
+      "main": [
+        [
+          {
+            "node": "Call LogSQLServer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LogSQLServer": {
+      "main": [
+        [
+          {
+            "node": "Close Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Delete Form": {
+      "main": [
+        [
+          {
+            "node": "Delete Ticket Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Ticket Form": {
+      "main": [
+        [
+          {
+            "node": "Delete Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Ticket": {
+      "main": [
+        [
+          {
+            "node": "Call LogSQLServer Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LogSQLServer Delete": {
+      "main": [
+        [
+          {
+            "node": "Delete Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email via Graph": {
+      "main": [
+        [
+          {
+            "node": "Update Ticket Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Bangkok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "versionId": "43b75457-56f0-445f-ab09-e491e8018447",
+  "activeVersionId": "43b75457-56f0-445f-ab09-e491e8018447",
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": "Version 43b75457",
+    "description": ""
+  }
+}
